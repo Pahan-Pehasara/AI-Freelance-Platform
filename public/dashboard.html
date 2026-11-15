@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard | AI Freelancing Platform</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      body {
+        margin: 0;
+        background: #f1f5f9;
+        color: #172033;
+        font-family: Arial, sans-serif;
+      }
+
+      header {
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      .navigation {
+        max-width: 1100px;
+        margin: auto;
+        padding: 20px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .brand {
+        font-size: 20px;
+        font-weight: bold;
+      }
+
+      .navigation-actions {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+
+      a {
+        color: #15803d;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+
+      button {
+        padding: 11px 18px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        background: white;
+        color: #172033;
+        font: inherit;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: #f1f5f9;
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
+
+      button:focus-visible,
+      a:focus-visible {
+        outline: 2px solid #15803d;
+        outline-offset: 4px;
+      }
+
+      main {
+        max-width: 1100px;
+        margin: auto;
+        padding: 40px 24px;
+      }
+
+      .page-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        font-size: 32px;
+      }
+
+      .subtitle {
+        margin: 0;
+        color: #526175;
+        line-height: 1.6;
+      }
+
+      .account-summary {
+        padding: 24px;
+        margin-bottom: 24px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+      }
+
+      .account-summary h2 {
+        margin: 0 0 10px;
+        font-size: 22px;
+      }
+
+      .account-summary p {
+        margin: 0 0 16px;
+        color: #526175;
+        overflow-wrap: anywhere;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 7px 12px;
+        border-radius: 20px;
+        background: #dcfce7;
+        color: #166534;
+        font-size: 14px;
+        font-weight: bold;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 20px;
+        margin: 0;
+      }
+
+      .stat-card {
+        padding: 24px;
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-top: 4px solid #15803d;
+        border-radius: 12px;
+      }
+
+      .stat-card dt {
+        color: #526175;
+        line-height: 1.5;
+      }
+
+      .stat-card dd {
+        margin: 16px 0 0;
+        font-size: 38px;
+        font-weight: bold;
+      }
+
+      .empty-message {
+        margin-top: 24px;
+        color: #526175;
+        line-height: 1.6;
+      }
+
+      .message {
+        margin: 20px 0;
+        line-height: 1.6;
+      }
+
+      .message.error {
+        color: #b91c1c;
+      }
+
+      @media (max-width: 800px) {
+        .stats {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 480px) {
+        .stats {
+          grid-template-columns: 1fr;
+        }
+
+        h1 {
+          font-size: 27px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <nav class="navigation" aria-label="Main navigation">
+        <span class="brand">AI Freelancing Platform</span>
+
+        <div class="navigation-actions">
+          <a href="/login.html">My account</a>
+          <button id="logoutButton" type="button">Sign out</button>
+        </div>
+      </nav>
+    </header>
+
+    <main>
+      <div class="page-heading">
+        <div>
+          <h1 id="pageTitle">Dashboard</h1>
+          <p id="pageSubtitle" class="subtitle">Your activity at a glance.</p>
+        </div>
+
+        <button id="refreshButton" type="button">Refresh</button>
+      </div>
+
+      <p id="message" class="message" role="status" aria-live="polite">
+        Loading your dashboard...
+      </p>
+
+      <div id="dashboardContent" hidden>
+        <section class="account-summary" aria-label="Your account">
+          <h2 id="welcome"></h2>
+          <p id="accountEmail"></p>
+          <span id="accountRole" class="badge"></span>
+        </section>
+
+        <section aria-label="Activity summary">
+          <dl id="stats" class="stats"></dl>
+        </section>
+
+        <p id="emptyMessage" class="empty-message" hidden></p>
+      </div>
+    </main>
+
+    <script>
+      const content = document.getElementById("dashboardContent");
+      const message = document.getElementById("message");
+      const stats = document.getElementById("stats");
+      const emptyMessage = document.getElementById("emptyMessage");
+      const refreshButton = document.getElementById("refreshButton");
+      const logoutButton = document.getElementById("logoutButton");
+
+      function showMessage(text, isError) {
+        message.textContent = text;
+        message.className = isError ? "message error" : "message";
+        message.hidden = !text;
+      }
+
+      async function loadDashboard() {
+        refreshButton.disabled = true;
+        content.hidden = true;
+        showMessage("Loading your dashboard...", false);
+
+        try {
+          const response = await fetch("/api/dashboard", {
+            cache: "no-store",
+          });
+
+          if (response.status === 401) {
+            window.location.replace("/login.html");
+            return;
+          }
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.message || "Unable to load dashboard.");
+          }
+
+          const isClient = data.user.userRole === "Client";
+          const title = isClient ? "Client dashboard" : "Freelancer dashboard";
+
+          document.title = title + " | AI Freelancing Platform";
+          document.getElementById("pageTitle").textContent = title;
+
+          document.getElementById("pageSubtitle").textContent = isClient
+            ? "An overview of your projects."
+            : "An overview of your proposals and assignments.";
+
+          document.getElementById("welcome").textContent =
+            "Welcome, " + data.user.fullName;
+
+          document.getElementById("accountEmail").textContent = data.user.email;
+
+          document.getElementById("accountRole").textContent =
+            data.user.userRole;
+
+          stats.replaceChildren();
+
+          data.stats.forEach(function (item) {
+            const card = document.createElement("div");
+            card.className = "stat-card";
+
+            const label = document.createElement("dt");
+            label.textContent = item.label;
+
+            const value = document.createElement("dd");
+            value.textContent = item.value;
+
+            card.append(label, value);
+            stats.append(card);
+          });
+
+          const hasNoActivity = data.stats.every(function (item) {
+            return item.value === 0;
+          });
+
+          emptyMessage.hidden = !hasNoActivity;
+          emptyMessage.textContent = isClient
+            ? "Your project activity will appear here."
+            : "Your proposal and assignment activity will appear here.";
+
+          content.hidden = false;
+          showMessage("", false);
+        } catch (error) {
+          showMessage(error.message || "Unable to load dashboard.", true);
+        } finally {
+          refreshButton.disabled = false;
+        }
+      }
+
+      refreshButton.addEventListener("click", loadDashboard);
+
+      logoutButton.addEventListener("click", async function () {
+        logoutButton.disabled = true;
+
+        try {
+          const response = await fetch("/api/auth/logout", {
+            method: "POST",
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.message || "Unable to sign out.");
+          }
+
+          window.location.replace("/login.html");
+        } catch (error) {
+          showMessage(error.message || "Unable to sign out.", true);
+        } finally {
+          logoutButton.disabled = false;
+        }
+      });
+
+      loadDashboard();
+    </script>
+  </body>
+</html>

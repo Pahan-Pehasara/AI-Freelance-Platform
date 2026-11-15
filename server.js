@@ -54,6 +54,7 @@ app.use("/api/auth", function (req, res, next) {
 });
 
 app.use("/api/auth", require("./routes/auth"));
+app.use("/api/dashboard", require("./routes/dashboard"));
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/", function (req, res) {
