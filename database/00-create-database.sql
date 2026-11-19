@@ -836,3 +836,120 @@ ORDER BY name;
 SELECT
     CAST(SERVERPROPERTY('IsIntegratedSecurityOnly') AS INT)
         AS WindowsAuthenticationOnly;
+        GO
+
+USE AIFreelanceDB;
+GO
+
+INSERT INTO dbo.AIService (ServiceName, Description)
+SELECT source.ServiceName, source.Description
+FROM (
+    VALUES
+    (
+        N'AI Chatbot Development',
+        N'Build chatbots for customer support and business enquiries.'
+    ),
+    (
+        N'Document Question Answering',
+        N'Build applications that answer questions using supplied documents.'
+    ),
+    (
+        N'Predictive Analytics',
+        N'Use historical data to forecast business outcomes.'
+    ),
+    (
+        N'Computer Vision',
+        N'Build applications that analyse images and recognise objects.'
+    ),
+    (
+        N'Natural Language Processing',
+        N'Analyse, classify and extract information from text.'
+    ),
+    (
+        N'Speech Transcription',
+        N'Convert recorded speech into searchable text.'
+    ),
+    (
+        N'Recommendation Systems',
+        N'Recommend relevant products, services or content to users.'
+    ),
+    (
+        N'AI Workflow Automation',
+        N'Automate business tasks using AI tools and integrations.'
+    ),
+    (
+        N'Data Preparation and Labelling',
+        N'Clean, organise and label datasets for AI projects.'
+    ),
+    (
+        N'AI Model Deployment',
+        N'Deploy trained models as applications or API services.'
+    )
+) AS source (ServiceName, Description)
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.AIService AS existing
+    WHERE existing.ServiceName = source.ServiceName
+);
+GO
+
+INSERT INTO dbo.Skill (SkillName, Description)
+SELECT source.SkillName, source.Description
+FROM (
+    VALUES
+    (
+        N'Python',
+        N'Programming for data processing, automation and AI applications.'
+    ),
+    (
+        N'SQL',
+        N'Querying and managing relational databases.'
+    ),
+    (
+        N'Machine Learning',
+        N'Training and evaluating predictive models.'
+    ),
+    (
+        N'Natural Language Processing',
+        N'Processing and analysing human language.'
+    ),
+    (
+        N'Computer Vision',
+        N'Processing and analysing images and video.'
+    ),
+    (
+        N'Retrieval-Augmented Generation',
+        N'Connecting language models to relevant external information.'
+    ),
+    (
+        N'API Development',
+        N'Building interfaces for applications and model services.'
+    ),
+    (
+        N'Data Analysis',
+        N'Exploring datasets and communicating useful findings.'
+    ),
+    (
+        N'Model Deployment',
+        N'Publishing and maintaining trained models for application use.'
+    ),
+    (
+        N'Data Annotation',
+        N'Labelling examples for model training and evaluation.'
+    )
+) AS source (SkillName, Description)
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.Skill AS existing
+    WHERE existing.SkillName = source.SkillName
+);
+GO
+
+SELECT ServiceID, ServiceName, IsActive
+FROM dbo.AIService
+ORDER BY ServiceName;
+
+SELECT SkillID, SkillName
+FROM dbo.Skill
+ORDER BY SkillName;
+GO

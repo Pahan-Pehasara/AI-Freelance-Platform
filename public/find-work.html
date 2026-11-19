@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Find Work | AI Freelancing Platform</title>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 32px 16px;
+        background: #f1f5f9;
+        color: #172033;
+        font-family: Arial, sans-serif;
+        line-height: 1.5;
+      }
+
+      main {
+        max-width: 900px;
+        margin: auto;
+      }
+
+      a {
+        color: #15803d;
+      }
+
+      .card {
+        margin-top: 24px;
+        padding: 28px;
+        background: white;
+        border: 1px solid #dce5ef;
+        border-radius: 14px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin-top: 0;
+      }
+
+      label {
+        display: block;
+        margin: 18px 0 6px;
+        font-weight: bold;
+      }
+
+      input,
+      select,
+      textarea,
+      button {
+        width: 100%;
+        padding: 12px;
+        border-radius: 8px;
+        font: inherit;
+      }
+
+      input,
+      select,
+      textarea {
+        border: 1px solid #9aacc4;
+      }
+
+      textarea {
+        resize: vertical;
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus,
+      button:focus-visible {
+        outline: 2px solid #15803d;
+        outline-offset: 2px;
+      }
+
+      fieldset {
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+      }
+
+      button {
+        margin-top: 20px;
+        border: 0;
+        background: #15803d;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      #projectDetails {
+        padding: 16px;
+        background: #f8fafc;
+        border: 1px solid #dce5ef;
+        border-radius: 8px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+
+      .proposal {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #dce5ef;
+        overflow-wrap: anywhere;
+      }
+
+      .proposal p {
+        margin: 6px 0;
+      }
+
+      .cover-letter {
+        white-space: pre-wrap;
+      }
+
+      #message {
+        min-height: 24px;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      @media (max-width: 480px) {
+        .card {
+          padding: 20px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <main>
+      <a href="/dashboard.html">← Back to dashboard</a>
+
+      <section class="card">
+        <h1>Find work</h1>
+        <p>
+          Explore open projects and send a proposal. All amounts are in LKR.
+        </p>
+
+        <button id="refreshButton" type="button">
+          Refresh projects and proposals
+        </button>
+
+        <form id="proposalForm" hidden>
+          <fieldset id="formFields" disabled>
+            <label for="projectID">Choose a project</label>
+            <select id="projectID" required>
+              <option value="">Select a project</option>
+            </select>
+
+            <p id="projectDetails" hidden></p>
+
+            <label for="coverLetter">Cover letter</label>
+            <textarea
+              id="coverLetter"
+              rows="6"
+              minlength="20"
+              maxlength="2000"
+              placeholder="Explain your approach and relevant experience."
+              required
+            ></textarea>
+
+            <label for="bidAmount">Your bid (LKR)</label>
+            <input
+              id="bidAmount"
+              type="number"
+              min="0.01"
+              max="9999999999.99"
+              step="0.01"
+              required
+            />
+
+            <label for="estimatedDays">Estimated days</label>
+            <input
+              id="estimatedDays"
+              type="number"
+              min="1"
+              max="3650"
+              step="1"
+              required
+            />
+
+            <button id="submitButton" type="submit" disabled>
+              Submit proposal
+            </button>
+          </fieldset>
+        </form>
+
+        <p id="message" role="status" aria-live="polite">
+          Loading available work...
+        </p>
+      </section>
+
+      <section id="proposalSection" class="card" hidden>
+        <h2>My proposals</h2>
+        <p id="proposalMessage" role="status" aria-live="polite"></p>
+        <div id="proposalList"></div>
+      </section>
+    </main>
+
+    <script>
+      const form = document.getElementById("proposalForm");
+      const formFields = document.getElementById("formFields");
+      const projectSelect = document.getElementById("projectID");
+      const projectDetails = document.getElementById("projectDetails");
+      const estimatedDays = document.getElementById("estimatedDays");
+      const submitButton = document.getElementById("submitButton");
+      const refreshButton = document.getElementById("refreshButton");
+      const message = document.getElementById("message");
+      const proposalSection = document.getElementById("proposalSection");
+      const proposalList = document.getElementById("proposalList");
+      const proposalMessage = document.getElementById("proposalMessage");
+
+      let projects = [];
+
+      function money(amount) {
+        return new Intl.NumberFormat("en-LK", {
+          style: "currency",
+          currency: "LKR",
+        }).format(amount);
+      }
+
+      function showMessage(text, success = false) {
+        message.textContent = text;
+        message.style.color = success ? "#15803d" : "#b91c1c";
+      }
+
+      async function requestJSON(url, options = {}) {
+        const response = await fetch(url, {
+          cache: "no-store",
+          ...options,
+        });
+
+        if (response.status === 401) {
+          window.location.replace("/login.html");
+          throw new Error("Please log in.");
+        }
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Request failed. Please try again.");
+        }
+
+        return data;
+      }
+
+      function showSelectedProject() {
+        const project = projects.find(function (item) {
+          return item.projectID === Number(projectSelect.value);
+        });
+
+        if (!project) {
+          projectDetails.hidden = true;
+          projectDetails.textContent = "";
+          submitButton.disabled = true;
+          return;
+        }
+
+        projectDetails.textContent = [
+          project.title,
+          "Client: " + project.clientName,
+          "Service: " + project.serviceName,
+          "Budget: " + money(project.budget),
+          "Deadline: " + project.deadline,
+          "Skills: " + (project.skills || "Not specified"),
+          "",
+          project.description,
+        ].join("\n");
+
+        projectDetails.hidden = false;
+        estimatedDays.max = Math.min(3650, project.remainingDays);
+        submitButton.disabled = Boolean(project.proposalID);
+      }
+
+      function addParagraph(parent, text, className = "") {
+        const paragraph = document.createElement("p");
+        paragraph.textContent = text;
+        paragraph.className = className;
+        parent.appendChild(paragraph);
+      }
+
+      async function loadData() {
+        refreshButton.disabled = true;
+        formFields.disabled = true;
+
+        try {
+          const [workData, proposalData] = await Promise.all([
+            requestJSON("/api/work"),
+            requestJSON("/api/work/proposals"),
+          ]);
+
+          const previousSelection = projectSelect.value;
+          projects = workData.projects;
+
+          projectSelect.replaceChildren(new Option("Select a project", ""));
+
+          for (const project of projects) {
+            const option = new Option(
+              "#" + project.projectID + " — " + project.title,
+              String(project.projectID),
+            );
+
+            if (project.proposalID) {
+              option.textContent +=
+                " — Already applied (" + project.proposalStatus + ")";
+              option.disabled = true;
+            }
+
+            projectSelect.appendChild(option);
+          }
+
+          const previousProject = projects.find(function (project) {
+            return (
+              String(project.projectID) === previousSelection &&
+              !project.proposalID
+            );
+          });
+
+          if (previousProject) {
+            projectSelect.value = previousSelection;
+          }
+
+          proposalList.replaceChildren();
+
+          proposalMessage.textContent = proposalData.proposals.length
+            ? ""
+            : "You have not submitted any proposals yet.";
+
+          for (const proposal of proposalData.proposals) {
+            const article = document.createElement("article");
+            article.className = "proposal";
+
+            const heading = document.createElement("h3");
+            heading.textContent = proposal.projectTitle;
+            article.appendChild(heading);
+
+            addParagraph(article, "Proposal ID: " + proposal.proposalID);
+            addParagraph(article, "Your bid: " + money(proposal.bidAmount));
+            addParagraph(article, "Estimated days: " + proposal.estimatedDays);
+            addParagraph(
+              article,
+              "Proposal status: " + proposal.proposalStatus,
+            );
+            addParagraph(article, "Project status: " + proposal.projectStatus);
+            addParagraph(article, proposal.coverLetter, "cover-letter");
+
+            proposalList.appendChild(article);
+          }
+
+          form.hidden = false;
+          proposalSection.hidden = false;
+          formFields.disabled = false;
+          showSelectedProject();
+
+          return projects.some(function (project) {
+            return !project.proposalID;
+          });
+        } catch (error) {
+          showMessage(error.message);
+          return null;
+        } finally {
+          refreshButton.disabled = false;
+        }
+      }
+
+      async function refreshData() {
+        showMessage("Loading...");
+
+        const available = await loadData();
+
+        if (available !== null) {
+          showMessage(
+            available
+              ? ""
+              : "No new projects are currently available to apply for.",
+            true,
+          );
+        }
+      }
+
+      projectSelect.addEventListener("change", showSelectedProject);
+      refreshButton.addEventListener("click", refreshData);
+
+      form.addEventListener("submit", async function (event) {
+        event.preventDefault();
+
+        const projectID = Number(projectSelect.value);
+
+        const project = projects.find(function (item) {
+          return item.projectID === projectID;
+        });
+
+        if (!project || project.proposalID) {
+          showMessage("Please select an available project.");
+          return;
+        }
+
+        const details = {
+          coverLetter: document.getElementById("coverLetter").value,
+          bidAmount: document.getElementById("bidAmount").value,
+          estimatedDays: Number(estimatedDays.value),
+        };
+
+        formFields.disabled = true;
+        refreshButton.disabled = true;
+        submitButton.textContent = "Submitting...";
+        showMessage("");
+
+        try {
+          const data = await requestJSON(
+            "/api/work/" + projectID + "/proposals",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(details),
+            },
+          );
+
+          form.reset();
+
+          const refreshed = await loadData();
+
+          if (refreshed !== null) {
+            showMessage(
+              data.message + " Proposal ID: " + data.proposalID,
+              true,
+            );
+          }
+        } catch (error) {
+          formFields.disabled = false;
+          showMessage(error.message);
+          showSelectedProject();
+        } finally {
+          refreshButton.disabled = false;
+          submitButton.textContent = "Submit proposal";
+        }
+      });
+
+      refreshData();
+    </script>
+  </body>
+</html>

@@ -33,7 +33,7 @@ app.use(
   }),
 );
 
-app.use("/api/auth", function (req, res, next) {
+app.use("/api", function (req, res, next) {
   res.set("Cache-Control", "no-store");
 
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
@@ -55,6 +55,11 @@ app.use("/api/auth", function (req, res, next) {
 
 app.use("/api/auth", require("./routes/auth"));
 app.use("/api/dashboard", require("./routes/dashboard"));
+app.use("/api/profile", require("./routes/profile"));
+app.use("/api/catalog", require("./routes/catalog"));
+app.use("/api/projects", require("./routes/projects"));
+app.use("/api/work", require("./routes/work"));
+
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/", function (req, res) {

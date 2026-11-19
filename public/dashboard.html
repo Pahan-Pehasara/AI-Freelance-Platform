@@ -201,6 +201,9 @@
 
         <div class="navigation-actions">
           <a href="/login.html">My account</a>
+          <a href="/profile.html">Edit profile</a>
+          <a id="myProjectsLink" href="/projects.html" hidden>My projects</a>
+          <a id="findWorkLink" href="/find-work.html" hidden>Find work</a>
           <button id="logoutButton" type="button">Sign out</button>
         </div>
       </nav>
@@ -269,6 +272,8 @@
           if (!response.ok) {
             throw new Error(data.message || "Unable to load dashboard.");
           }
+          document.getElementById("myProjectsLink").hidden =
+            data.user.userRole !== "Client";
 
           const isClient = data.user.userRole === "Client";
           const title = isClient ? "Client dashboard" : "Freelancer dashboard";
@@ -347,6 +352,27 @@
       });
 
       loadDashboard();
+    </script>
+    <script>
+      (async function () {
+        const findWorkLink = document.getElementById("findWorkLink");
+
+        try {
+          const response = await fetch("/api/auth/me", {
+            cache: "no-store",
+          });
+
+          if (!response.ok) {
+            return;
+          }
+
+          const data = await response.json();
+
+          findWorkLink.hidden = data.user.userRole !== "Freelancer";
+        } catch (error) {
+          console.error("Unable to load dashboard navigation:", error.message);
+        }
+      })();
     </script>
   </body>
 </html>
