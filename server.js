@@ -60,6 +60,7 @@ app.use("/api/catalog", require("./routes/catalog"));
 app.use("/api/projects", require("./routes/projects"));
 app.use("/api/work", require("./routes/work"));
 app.use("/api/client-proposals", require("./routes/client-proposals"));
+app.use("/api/assignments", require("./routes/assignments"));
 
 app.use(express.static(path.join(__dirname, "public")));
 
