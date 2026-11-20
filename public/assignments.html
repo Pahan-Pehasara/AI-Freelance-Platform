@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Assignments</title>
+</head>
+
+<body>
+
+<h1>My Assignments</h1>
+
+<div id="assignments"></div>
+
+<script>
+async function loadAssignments(){
+
+    const response = await fetch("/api/assignments");
+
+    if(response.status===401){
+        location.href="/login.html";
+        return;
+    }
+
+    const data = await response.json();
+
+    const container=document.getElementById("assignments");
+
+    if(data.assignments.length===0){
+
+        container.innerHTML="<p>No assignments found.</p>";
+        return;
+
+    }
+
+    data.assignments.forEach(function(item){
+
+        container.innerHTML += `
+            <hr>
+
+            <h3>${item.projectTitle}</h3>
+
+            <p>Client : ${item.clientName}</p>
+
+            <p>Freelancer : ${item.freelancerName}</p>
+
+            <p>Status : ${item.projectStatus}</p>
+
+            <p>Amount : LKR ${item.agreedAmount}</p>
+
+        `;
+
+    });
+
+}
+
+loadAssignments();
+
+</script>
+
+</body>
+
+</html>
