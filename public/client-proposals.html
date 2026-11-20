@@ -1,0 +1,570 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review Proposals | AI Freelancing Platform</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    body {
+      margin: 0;
+      padding: 30px 16px;
+      background: #f1f5f9;
+      color: #172033;
+      font-family: Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    main {
+      max-width: 900px;
+      margin: auto;
+    }
+
+    a {
+      color: #15803d;
+    }
+
+    .card {
+      background: white;
+      padding: 25px;
+      margin: 20px 0;
+      border-radius: 12px;
+      border: 1px solid #dce5ef;
+    }
+
+    h1, h2, h3 {
+      margin-top: 0;
+    }
+
+    select, button {
+      padding: 12px;
+      border-radius: 7px;
+      font: inherit;
+    }
+
+    select {
+      width: 100%;
+      border: 1px solid #94a3b8;
+    }
+
+    button {
+      border: none;
+      background: #15803d;
+      color: white;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+
+    button:hover:not(:disabled) {
+      background: #166534;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    button:focus-visible,
+    select:focus-visible {
+      outline: 2px solid #15803d;
+      outline-offset: 2px;
+    }
+
+    .proposal {
+      border-top: 1px solid #ddd;
+      padding: 20px 0;
+      overflow-wrap: anywhere;
+    }
+
+    .proposal h3 {
+      margin-bottom: 10px;
+    }
+
+    .status {
+      font-weight: bold;
+    }
+
+    .cover-letter {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      padding: 14px;
+      background: #f8fafc;
+      border-radius: 8px;
+    }
+
+    .details {
+      color: #53647c;
+    }
+
+    .success {
+      color: #15803d;
+    }
+
+    .error {
+      color: #b91c1c;
+    }
+
+    #message {
+      min-height: 24px;
+    }
+
+    #emptyMessage {
+      color: #53647c;
+    }
+
+    .project-status {
+      display: inline-block;
+      padding: 5px 10px;
+      background: #dcfce7;
+      color: #166534;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .assigned {
+      padding: 16px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      margin-top: 15px;
+    }
+
+    @media (max-width: 480px) {
+      .card {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+<main>
+
+  <a href="/dashboard.html">← Back to Dashboard</a>
+
+  <section class="card">
+    <h1>Review Proposals</h1>
+
+    <p class="details">
+      Review proposals submitted by freelancers for your projects
+      and select the freelancer you want to work with.
+    </p>
+
+    <label for="projectSelect">Choose your project</label>
+
+    <select id="projectSelect" disabled>
+      <option value="">Loading projects...</option>
+    </select>
+
+    <button id="refreshButton" type="button">
+      Refresh
+    </button>
+
+    <p id="message" role="status" aria-live="polite">
+      Loading your projects...
+    </p>
+  </section>
+
+  <section class="card" id="projectSection" hidden>
+    <h2>Project Details</h2>
+    <div id="projectDetails"></div>
+  </section>
+
+  <section class="card" id="proposalSection" hidden>
+    <h2>Received Proposals</h2>
+    <p id="emptyMessage"></p>
+    <div id="proposalList"></div>
+  </section>
+
+</main>
+
+<script>
+  const projectSelect = document.getElementById("projectSelect");
+  const refreshButton = document.getElementById("refreshButton");
+  const message = document.getElementById("message");
+
+  const projectSection = document.getElementById("projectSection");
+  const projectDetails = document.getElementById("projectDetails");
+
+  const proposalSection = document.getElementById("proposalSection");
+  const proposalList = document.getElementById("proposalList");
+  const emptyMessage = document.getElementById("emptyMessage");
+
+  let busy = false;
+
+  function money(amount) {
+    if (amount === null || amount === undefined || amount === "") {
+      return "Not available";
+    }
+
+    return new Intl.NumberFormat("en-LK", {
+      style: "currency",
+      currency: "LKR"
+    }).format(Number(amount));
+  }
+
+  function showMessage(text, type = "") {
+    message.textContent = text;
+    message.className = type;
+  }
+
+  async function requestJSON(url, options = {}) {
+    const response = await fetch(url, {
+      cache: "no-store",
+      ...options
+    });
+
+    if (response.status === 401) {
+      window.location.replace("/login.html");
+      throw new Error("Please log in.");
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+
+    if (!contentType.includes("application/json")) {
+      const responseText = await response.text();
+
+      console.error("Expected JSON but received:", {
+        url,
+        status: response.status,
+        responseText: responseText.slice(0, 300)
+      });
+
+      throw new Error(
+        "The server returned HTML instead of JSON. Check the API route."
+      );
+    }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Request failed.");
+    }
+
+    return data;
+  }
+
+  function addText(parent, label, value) {
+    const p = document.createElement("p");
+
+    p.textContent = label + ": " +
+      (value === null || value === undefined || value === ""
+        ? "Not available"
+        : value);
+
+    parent.appendChild(p);
+  }
+
+  function setBusy(value) {
+    busy = value;
+
+    projectSelect.disabled = value;
+    refreshButton.disabled = value;
+
+    document.querySelectorAll(".accept-button")
+      .forEach(function (button) {
+        button.disabled = value;
+      });
+  }
+
+  function clearSections() {
+    projectSection.hidden = true;
+    proposalSection.hidden = true;
+
+    projectDetails.replaceChildren();
+    proposalList.replaceChildren();
+    emptyMessage.textContent = "";
+  }
+
+  async function loadPage(preferredID) {
+    clearSections();
+
+    // Correct endpoint: load the client's projects.
+    const projectData = await requestJSON("/api/projects/mine");
+
+    const projects = projectData.projects || [];
+
+    projectSelect.replaceChildren();
+
+    if (projects.length === 0) {
+      projectSelect.add(
+        new Option("No projects yet", "")
+      );
+
+      showMessage("You have not posted any projects yet.");
+      return;
+    }
+
+    projects.forEach(function (project) {
+      const option = new Option(
+        "#" + project.projectID + " - " + project.title,
+        String(project.projectID)
+      );
+
+      projectSelect.add(option);
+    });
+
+    if (
+      preferredID &&
+      projects.some(function (project) {
+        return String(project.projectID) === String(preferredID);
+      })
+    ) {
+      projectSelect.value = String(preferredID);
+    }
+
+    const selectedID = projectSelect.value;
+
+    if (!selectedID) {
+      showMessage("Please select a project.");
+      return;
+    }
+
+    // Load proposals for the selected project.
+    const data = await requestJSON(
+      "/api/client-proposals/" + encodeURIComponent(selectedID)
+    );
+
+    const project = data.project;
+    const proposals = data.proposals || [];
+
+    if (!project) {
+      throw new Error("Project details were not returned by the server.");
+    }
+
+    const heading = document.createElement("h3");
+    heading.textContent = project.title;
+    projectDetails.appendChild(heading);
+
+    addText(projectDetails, "Project ID", project.projectID);
+    addText(projectDetails, "Service", project.serviceName);
+    addText(projectDetails, "Budget", money(project.budget));
+    addText(projectDetails, "Deadline", project.deadline);
+
+    const status = document.createElement("p");
+    status.className = "project-status";
+    status.textContent = project.projectStatus;
+    projectDetails.appendChild(status);
+
+    addText(
+      projectDetails,
+      "Total proposals",
+      proposals.length
+    );
+
+    // Show assignment details if a freelancer has already been selected.
+    if (project.assignmentID) {
+      const assigned = document.createElement("div");
+      assigned.className = "assigned";
+
+      const assignedHeading = document.createElement("h3");
+      assignedHeading.textContent = "Selected Freelancer";
+      assigned.appendChild(assignedHeading);
+
+      addText(
+        assigned,
+        "Freelancer",
+        project.assignedFreelancer
+      );
+
+      addText(
+        assigned,
+        "Assignment ID",
+        project.assignmentID
+      );
+
+      addText(
+        assigned,
+        "Agreed Amount",
+        money(project.agreedAmount)
+      );
+
+      projectDetails.appendChild(assigned);
+    }
+
+    if (proposals.length === 0) {
+      emptyMessage.textContent =
+        "No proposals have been received for this project yet.";
+    } else {
+      emptyMessage.textContent =
+        proposals.length + " proposal(s) received.";
+    }
+
+    proposals.forEach(function (proposal) {
+      const article = document.createElement("article");
+      article.className = "proposal";
+
+      const heading = document.createElement("h3");
+      heading.textContent = proposal.fullName;
+      article.appendChild(heading);
+
+      addText(
+        article,
+        "Professional Title",
+        proposal.professionalTitle
+      );
+
+      addText(
+        article,
+        "Freelancer ID",
+        proposal.freelancerID
+      );
+
+      addText(
+        article,
+        "Proposal ID",
+        proposal.proposalID
+      );
+
+      addText(
+        article,
+        "Bid Amount",
+        money(proposal.bidAmount)
+      );
+
+      addText(
+        article,
+        "Estimated Days",
+        proposal.estimatedDays
+      );
+
+      const proposalStatus = document.createElement("p");
+      proposalStatus.className = "status";
+      proposalStatus.textContent =
+        "Proposal Status: " + proposal.proposalStatus;
+
+      article.appendChild(proposalStatus);
+
+      const coverHeading = document.createElement("h4");
+      coverHeading.textContent = "Cover Letter";
+      article.appendChild(coverHeading);
+
+      const cover = document.createElement("p");
+      cover.className = "cover-letter";
+      cover.textContent = proposal.coverLetter || "No cover letter provided.";
+      article.appendChild(cover);
+
+      const canAccept =
+        project.projectStatus === "Open" &&
+        !project.assignmentID &&
+        proposal.proposalStatus === "Pending" &&
+        proposal.canBeSelected === true;
+
+      if (canAccept) {
+        const button = document.createElement("button");
+
+        button.className = "accept-button";
+        button.textContent = "Accept Proposal";
+
+        button.addEventListener("click", function () {
+          acceptProposal(project.projectID, proposal);
+        });
+
+        article.appendChild(button);
+      } else if (proposal.proposalStatus === "Pending") {
+        const note = document.createElement("p");
+        note.className = "details";
+        note.textContent =
+          "This proposal is currently not eligible for selection.";
+
+        article.appendChild(note);
+      }
+
+      proposalList.appendChild(article);
+    });
+
+    projectSection.hidden = false;
+    proposalSection.hidden = false;
+  }
+
+  async function refreshPage(preferredID) {
+    if (busy) return;
+
+    setBusy(true);
+    showMessage("Loading...");
+
+    try {
+      await loadPage(preferredID);
+
+      if (projectSelect.value) {
+        showMessage("");
+      }
+    } catch (error) {
+      console.error("Review Proposals error:", error);
+      showMessage(error.message, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function acceptProposal(projectID, proposal) {
+    if (busy) return;
+
+    const confirmed = confirm(
+      "Are you sure you want to accept " +
+      proposal.fullName +
+      "'s proposal for " +
+      money(proposal.bidAmount) +
+      "?"
+    );
+
+    if (!confirmed) return;
+
+    setBusy(true);
+    showMessage("Selecting freelancer...");
+
+    try {
+      const data = await requestJSON(
+        "/api/client-proposals/" +
+        encodeURIComponent(projectID) +
+        "/" +
+        encodeURIComponent(proposal.proposalID) +
+        "/accept",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({})
+        }
+      );
+
+      await loadPage(projectID);
+
+      showMessage(
+        data.message || "Freelancer selected successfully!",
+        "success"
+      );
+
+    } catch (error) {
+      console.error("Accept proposal error:", error);
+      showMessage(error.message, "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  projectSelect.addEventListener("change", function () {
+    refreshPage(projectSelect.value);
+  });
+
+  refreshButton.addEventListener("click", function () {
+    refreshPage(projectSelect.value);
+  });
+
+  refreshPage();
+
+</script>
+
+</body>
+</html>
