@@ -1,9 +1,11 @@
+
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard | AI Freelancing Platform</title>
+
     <style>
       * {
         box-sizing: border-box;
@@ -45,6 +47,7 @@
         display: flex;
         align-items: center;
         gap: 20px;
+        flex-wrap: wrap;
       }
 
       a {
@@ -191,188 +194,346 @@
         h1 {
           font-size: 27px;
         }
+
+        .navigation-actions {
+          gap: 12px;
+        }
       }
     </style>
   </head>
+
   <body>
     <header>
       <nav class="navigation" aria-label="Main navigation">
+
         <span class="brand">AI Freelancing Platform</span>
 
         <div class="navigation-actions">
-          <a href="/login.html">My account</a>
+
           <a href="/profile.html">Edit profile</a>
-          <a id="myProjectsLink" href="/projects.html" hidden>My projects</a>
-          <a id="findWorkLink" href="/find-work.html" hidden>Find work</a>
-          <button id="logoutButton" type="button">Sign out</button>
+
+          <a id="myProjectsLink"
+             href="/projects.html"
+             hidden>
+            My projects
+          </a>
+
+          <a id="reviewProposalsLink"
+             href="/client-proposals.html"
+             hidden>
+            Review Proposals
+          </a>
+
+          <a id="findWorkLink"
+             href="/find-work.html"
+             hidden>
+            Find work
+          </a>
+
+          <button id="logoutButton" type="button">
+            Sign out
+          </button>
+
         </div>
       </nav>
     </header>
 
     <main>
+
       <div class="page-heading">
+
         <div>
           <h1 id="pageTitle">Dashboard</h1>
-          <p id="pageSubtitle" class="subtitle">Your activity at a glance.</p>
+
+          <p id="pageSubtitle" class="subtitle">
+            Your activity at a glance.
+          </p>
         </div>
 
-        <button id="refreshButton" type="button">Refresh</button>
+        <button id="refreshButton" type="button">
+          Refresh
+        </button>
+
       </div>
 
-      <p id="message" class="message" role="status" aria-live="polite">
+      <p id="message"
+         class="message"
+         role="status"
+         aria-live="polite">
         Loading your dashboard...
       </p>
 
       <div id="dashboardContent" hidden>
-        <section class="account-summary" aria-label="Your account">
+
+        <section class="account-summary"
+                 aria-label="Your account">
+
           <h2 id="welcome"></h2>
+
           <p id="accountEmail"></p>
+
           <span id="accountRole" class="badge"></span>
+
         </section>
 
         <section aria-label="Activity summary">
+
           <dl id="stats" class="stats"></dl>
+
         </section>
 
-        <p id="emptyMessage" class="empty-message" hidden></p>
+        <p id="emptyMessage"
+           class="empty-message"
+           hidden>
+        </p>
+
       </div>
+
     </main>
 
     <script>
-      const content = document.getElementById("dashboardContent");
-      const message = document.getElementById("message");
-      const stats = document.getElementById("stats");
-      const emptyMessage = document.getElementById("emptyMessage");
-      const refreshButton = document.getElementById("refreshButton");
-      const logoutButton = document.getElementById("logoutButton");
+      const content =
+        document.getElementById("dashboardContent");
 
-      function showMessage(text, isError) {
+      const message =
+        document.getElementById("message");
+
+      const stats =
+        document.getElementById("stats");
+
+      const emptyMessage =
+        document.getElementById("emptyMessage");
+
+      const refreshButton =
+        document.getElementById("refreshButton");
+
+      const logoutButton =
+        document.getElementById("logoutButton");
+
+      const myProjectsLink =
+        document.getElementById("myProjectsLink");
+
+      const reviewProposalsLink =
+        document.getElementById("reviewProposalsLink");
+
+      const findWorkLink =
+        document.getElementById("findWorkLink");
+
+
+      function showMessage(text, isError = false) {
+
         message.textContent = text;
-        message.className = isError ? "message error" : "message";
+
+        message.className =
+          isError ? "message error" : "message";
+
         message.hidden = !text;
+
       }
 
+
       async function loadDashboard() {
+
         refreshButton.disabled = true;
+
         content.hidden = true;
-        showMessage("Loading your dashboard...", false);
+
+        showMessage("Loading your dashboard...");
 
         try {
+
           const response = await fetch("/api/dashboard", {
             cache: "no-store",
           });
 
           if (response.status === 401) {
+
             window.location.replace("/login.html");
+
             return;
           }
 
           const data = await response.json();
 
           if (!response.ok) {
-            throw new Error(data.message || "Unable to load dashboard.");
+
+            throw new Error(
+              data.message || "Unable to load dashboard."
+            );
+
           }
-          document.getElementById("myProjectsLink").hidden =
-            data.user.userRole !== "Client";
 
-          const isClient = data.user.userRole === "Client";
-          const title = isClient ? "Client dashboard" : "Freelancer dashboard";
+          if (
+            !data.user ||
+            !["Client", "Freelancer"].includes(data.user.userRole)
+          ) {
+            throw new Error("Invalid account information.");
+          }
 
-          document.title = title + " | AI Freelancing Platform";
-          document.getElementById("pageTitle").textContent = title;
+          if (!Array.isArray(data.stats)) {
+            throw new Error("Invalid dashboard statistics.");
+          }
 
-          document.getElementById("pageSubtitle").textContent = isClient
-            ? "An overview of your projects."
-            : "An overview of your proposals and assignments.";
+
+
+          const isClient =
+            data.user.userRole === "Client";
+
+          const isFreelancer =
+            data.user.userRole === "Freelancer";
+
+
+
+          myProjectsLink.hidden = !isClient;
+
+          reviewProposalsLink.hidden = !isClient;
+
+          findWorkLink.hidden = !isFreelancer;
+
+
+
+          const title = isClient
+            ? "Client dashboard"
+            : "Freelancer dashboard";
+
+          document.title =
+            title + " | AI Freelancing Platform";
+
+          document.getElementById("pageTitle").textContent =
+            title;
+
+          document.getElementById("pageSubtitle").textContent =
+            isClient
+              ? "An overview of your projects."
+              : "An overview of your proposals and assignments.";
+
+
 
           document.getElementById("welcome").textContent =
             "Welcome, " + data.user.fullName;
 
-          document.getElementById("accountEmail").textContent = data.user.email;
+          document.getElementById("accountEmail").textContent =
+            data.user.email;
 
           document.getElementById("accountRole").textContent =
             data.user.userRole;
 
+
+
           stats.replaceChildren();
 
           data.stats.forEach(function (item) {
+
             const card = document.createElement("div");
+
             card.className = "stat-card";
 
             const label = document.createElement("dt");
+
             label.textContent = item.label;
 
             const value = document.createElement("dd");
+
             value.textContent = item.value;
 
             card.append(label, value);
+
             stats.append(card);
+
           });
 
-          const hasNoActivity = data.stats.every(function (item) {
-            return item.value === 0;
-          });
+
+          // Empty activity message
+
+          const hasNoActivity = data.stats.every(
+            function (item) {
+
+              return Number(item.value) === 0;
+
+            }
+          );
 
           emptyMessage.hidden = !hasNoActivity;
+
           emptyMessage.textContent = isClient
             ? "Your project activity will appear here."
             : "Your proposal and assignment activity will appear here.";
 
+
           content.hidden = false;
-          showMessage("", false);
+
+          showMessage("");
+
         } catch (error) {
-          showMessage(error.message || "Unable to load dashboard.", true);
+
+          showMessage(
+            error.message || "Unable to load dashboard.",
+            true
+          );
+
         } finally {
+
           refreshButton.disabled = false;
+
         }
+
       }
 
-      refreshButton.addEventListener("click", loadDashboard);
 
-      logoutButton.addEventListener("click", async function () {
-        logoutButton.disabled = true;
 
-        try {
-          const response = await fetch("/api/auth/logout", {
-            method: "POST",
-          });
+      refreshButton.addEventListener(
+        "click",
+        loadDashboard
+      );
 
-          const data = await response.json();
 
-          if (!response.ok) {
-            throw new Error(data.message || "Unable to sign out.");
+      logoutButton.addEventListener(
+        "click",
+        async function () {
+
+          logoutButton.disabled = true;
+
+          try {
+
+            const response = await fetch(
+              "/api/auth/logout",
+              {
+                method: "POST",
+              }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+
+              throw new Error(
+                data.message || "Unable to sign out."
+              );
+
+            }
+
+            window.location.replace("/login.html");
+
+          } catch (error) {
+
+            showMessage(
+              error.message || "Unable to sign out.",
+              true
+            );
+
+          } finally {
+
+            logoutButton.disabled = false;
+
           }
 
-          window.location.replace("/login.html");
-        } catch (error) {
-          showMessage(error.message || "Unable to sign out.", true);
-        } finally {
-          logoutButton.disabled = false;
         }
-      });
+      );
+
 
       loadDashboard();
+
     </script>
-    <script>
-      (async function () {
-        const findWorkLink = document.getElementById("findWorkLink");
 
-        try {
-          const response = await fetch("/api/auth/me", {
-            cache: "no-store",
-          });
-
-          if (!response.ok) {
-            return;
-          }
-
-          const data = await response.json();
-
-          findWorkLink.hidden = data.user.userRole !== "Freelancer";
-        } catch (error) {
-          console.error("Unable to load dashboard navigation:", error.message);
-        }
-      })();
-    </script>
   </body>
 </html>
