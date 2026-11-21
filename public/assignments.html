@@ -46,10 +46,38 @@ async function loadAssignments(){
             <p>Status : ${item.projectStatus}</p>
 
             <p>Amount : LKR ${item.agreedAmount}</p>
+            
+            ${item.projectStatus === "InProgress" ? `
+                <button onclick="completeAssignment(${item.assignmentID})">
+                    Complete Project
+                </button>
+            ` : ""}
+
+            
 
         `;
 
     });
+
+}
+
+async function completeAssignment(assignmentID) {
+
+    if (!confirm("Are you sure you want to mark this project as completed?")) {
+        return;
+    }
+
+    const response = await fetch("/api/assignments/" + assignmentID + "/complete", {
+        method: "POST"
+    });
+
+    const data = await response.json();
+
+    alert(data.message);
+
+    if (response.ok) {
+        location.reload();
+    }
 
 }
 
