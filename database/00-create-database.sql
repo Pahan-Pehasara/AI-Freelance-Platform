@@ -953,3 +953,41 @@ SELECT SkillID, SkillName
 FROM dbo.Skill
 ORDER BY SkillName;
 GO
+
+
+-- Additional AI Services
+INSERT INTO dbo.AIService (ServiceName, Description, IsActive)
+SELECT v.ServiceName, v.Description, v.IsActive
+FROM (VALUES
+    (N'Web Development', N'Website and web application development', 1),
+    (N'Graphic Design', N'Logo, banner and graphic design', 1),
+    (N'Mobile App Development', N'Android and iOS application development', 1),
+    (N'Content Writing', N'Articles and website content writing', 1),
+    (N'Digital Marketing', N'Online marketing and SEO services', 1)
+) AS v(ServiceName, Description, IsActive)
+WHERE NOT EXISTS (
+    SELECT 1 FROM dbo.AIService AS a
+    WHERE a.ServiceName = v.ServiceName
+);
+GO
+
+-- Additional Skills
+INSERT INTO dbo.Skill (SkillName, Description)
+SELECT v.SkillName, v.Description
+FROM (VALUES
+    (N'HTML', N'HTML web development'),
+    (N'CSS', N'CSS styling'),
+    (N'JavaScript', N'JavaScript programming'),
+    (N'React', N'React frontend development'),
+    (N'Node.js', N'Backend development'),
+    (N'Python', N'Python programming'),
+    (N'PHP', N'PHP development'),
+    (N'Photoshop', N'Graphic design'),
+    (N'Figma', N'UI UX design'),
+    (N'SEO', N'Search engine optimization')
+) AS v(SkillName, Description)
+WHERE NOT EXISTS (
+    SELECT 1 FROM dbo.Skill AS s
+    WHERE s.SkillName = v.SkillName
+);
+GO
