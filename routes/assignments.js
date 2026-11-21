@@ -47,4 +47,71 @@ router.get("/", async function (req, res) {
   }
 });
 
+router.post("/:assignmentID/complete", async function (req, res) {
+
+  const assignmentID = Number(req.params.assignmentID);
+
+  if (!Number.isInteger(assignmentID) || assignmentID < 1) {
+    return res.status(400).json({
+      message: "Invalid assignment ID."
+    });
+  }
+
+  const transaction = new sql.Transaction(pool);
+
+  try {
+
+    await transaction.begin();
+
+    const request = new sql.Request(transaction);
+
+    request.input("AssignmentID", sql.Int, assignmentID);
+    request.input("UserID", sql.Int, req.user.userID);
+
+    const result = await request.query(`
+        UPDATE p
+        SET p.ProjectStatus = 'Completed'
+        FROM dbo.Project AS p
+        INNER JOIN dbo.Assignment AS a
+            ON p.ProjectID = a.ProjectID
+        WHERE
+            a.AssignmentID = @AssignmentID
+            AND p.ClientID = @UserID
+            AND p.ProjectStatus = 'InProgress'
+            AND a.CompletedAt IS NULL;
+
+        UPDATE dbo.Assignment
+        SET CompletedAt = GETDATE()
+        WHERE
+            AssignmentID = @AssignmentID
+            AND CompletedAt IS NULL;
+    `);
+
+    if (result.rowsAffected[0] === 0 && result.rowsAffected[1] === 0) {
+      await transaction.rollback();
+
+      return res.status(409).json({
+        message: "This assignment has already been completed or cannot be completed."
+      });
+    }
+
+    await transaction.commit();
+
+    return res.json({
+      message: "Project marked as completed."
+    });
+
+  } catch (error) {
+
+    await transaction.rollback();
+
+    console.error("Complete assignment failed:", error.message);
+
+    return res.status(500).json({
+      message: "Unable to complete assignment."
+    });
+  }
+
+});
+
 module.exports = router;
